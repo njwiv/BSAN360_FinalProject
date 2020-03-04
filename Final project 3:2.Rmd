@@ -1,0 +1,147 @@
+---
+title: "Final Project BSAN 360"
+author: "Nicholas Whalen"
+date: "3/3/2020"
+output: html_document
+---
+
+
+```{r}
+main.df <- read.csv("Main - googleplaystore.csv")
+reviews.df <- read.csv("Reviews - googleplaystore.csv")
+
+main.df <- na.omit (main.df)
+main.df <- main.df[!duplicated(main.df$app)]
+
+summary(main.df)
+```
+
+```{r}
+#Combining both tables by app name
+combined <- merge(main.df,reviews.df,by="App")
+combined
+```
+
+```{r}
+free_apps <- subset(combined, Price = 0)
+free_apps
+paid_apps <- subset(combined, Price != 0)
+paid_apps
+```
+
+```{r}
+#While there are many more reviews for free apps there is a higher proportion of positive reviews for paid apps
+summary(free_apps$Sentiment)
+summary(paid_apps$Sentiment)
+```
+
+```{r}
+summary(combined)
+
+model1 <- lm(combined$Rating ~ combined$Category)
+model1
+
+model2 <- lm(combined$Rating ~ combined$Reviews)
+model2
+
+t.test(Rating ~ Category  , data = combined)
+
+group <- aov(combined$Rating~combined$Category)
+anova(group) # Shows that there is a significant relationship
+
+TukeyHSD(group)
+
+cmat <- cor(combined$Rating,combined$Category)
+corrplot.mixed(cmat)
+
+barplot(y=combined$Rating,x=combined$Category)
+
+ggplot(data=combined, aes(x=Rating,y=Category))
+
+```
+
+```{r}
+#viz
+# Create a histogram
+
+ggplot(combined,aes(x=Rating))+
+  geom_histogram(fill="navyblue",col="black")+
+  ggtitle("Histogram Distribution of Rating")+
+  xlab("Rating")
+
+ggplot(combined,aes(x=Category,y=Rating)) +
+  geom_bar(stat = "identity",width = 0.7,fill="skyblue")+
+  coord_flip()+
+  xlab("Category Name")+
+  ylab("Average rating")
+
+ggplot(combined,aes(x=Category,y=Reviews)) +
+  geom_bar(stat = "identity",width = 0.7,fill="indianred")+
+  coord_flip()+
+  ggtitle("Total Reviews Of Each App Category")+
+  xlab("Category Name")+
+  ylab("Total Number of Reviews")
+
+ggplot(combined,aes(x=Installs,y=Rating)) +
+  geom_point(shape = 3,alpha = 0.3,col="Darkblue")+
+  geom_smooth(method = 'lm',se = FALSE)+
+  xlab("Total Number of Installs") +
+  ylab("Rating")+
+  ggtitle("Relationship between Rating and Installs")
+
+google_app %>% filter(Category == "GAME") %>% 
+ggplot(aes(x=Genres))+
+geom_bar(fill = "Green")+
+ggtitle("Total Count of Genres in Game Category")+
+xlab("Type of Genres")+
+ylab("Count")+
+coord_flip()
+```
+
+```{r}
+#Removing Special Symbols from Price and installs 
+google_app$Price <- gsub('[$]', '', google_app$Price)
+google_app$Installs <- gsub("\\+","", as.character(google_app$Installs))
+
+
+#Converting Price and Install into numerical
+google_app$Price <- as.numeric(google_app$Price)
+google_app$Installs <- as.integer(gsub(",", "", google_app$Installs))
+
+
+#Converting Category,Type,Genres into Factor
+google_app$Category <- as.factor(google_app$Category)
+google_app$Type <- as.factor(google_app$Type)
+google_app$`Content Rating` <- as.factor(google_app$`Content Rating`)
+google_app$Genres <- as.factor(google_app$Genres)
+
+#Removing Special Symbols from Size Column and converting all size into MB
+size_in_m <- google_app[grep('M', google_app$Size),]$Size #Removing all M symbol
+size_in_m <- gsub('M', '', size_in_m) # Removing all M symbol
+size_in_m <- as.numeric(size_in_m) #converting to numeric
+
+size_in_k <- google_app[grep('k', google_app$Size),]$Size #Removing all K symbol
+size_in_k <- gsub('k', '', size_in_k) #Removing all K symbol
+size_in_k <- as.numeric(size_in_k)/1024 #converting to numeric as well as from Kilobytes to megabytes.
+
+#creating a new variable and storing all cleanned values into new variable.
+google_app$all_size_in_m = NA
+google_app[grep('k', google_app$Size),]$all_size_in_m <- size_in_k
+google_app[grep('M', google_app$Size),]$all_size_in_m <- size_in_m
+
+#Removing Old Size Variable
+google_app$Size <- NULL 
+
+
+#Converting Laste Updated Column into Date
+google_app$`Last Updated` <- mdy(google_app$`Last Updated`)
+google_app$date <- date(google_app$`Last Updated`)
+#Removing  column Last Updated From Dataset
+google_app$`Last Updated` <- NULL
+
+#Imputing Rating and Reviews Na's values with mean
+google_app$Rating[is.na(google_app$Rating)] <- round(mean(google_app$Rating, na.rm = TRUE))
+google_app$Reviews[is.na(google_app$Reviews)] <- round(mean(google_app$Reviews, na.rm = TRUE))
+google_app$Installs[is.na(google_app$Installs)] <- round(mean(google_app$Installs, na.rm = TRUE))
+```
+
